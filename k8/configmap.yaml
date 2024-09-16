@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tenant-list-config
+data:
+  tenants: |
+    tenant_1
+    tenant_2
+    tenant_3
