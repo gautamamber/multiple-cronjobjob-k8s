@@ -1,0 +1,63 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: tenant-cronjob
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      parallelism: 3  # Number of tenants (adjust as per your need)
+      completions: 3   # Ensure all jobs complete
+      template:
+        metadata:
+          annotations:
+            batch.kubernetes.io/job-completion-index: "0"
+        spec:
+          # volumes:
+          #   - name: tenant-list-volume
+          #     configMap:
+          #       name: tenant-list-config
+          # initContainers:
+          #   - name: init-tenant-list
+          #     image: busybox
+          #     volumeMounts:
+          #       - name: tenant-list-volume
+          #         mountPath: /mnt/tenant-list
+          #     command: ["/bin/sh", "-c"]
+          #     args:
+          #       - |
+          #         # Create a single file with all tenant IDs
+          #         cat /mnt/tenant-list/tenants > /mnt/tenant-list/all-tenants
+          containers:
+            - name: main-container
+              image: <add script docker image> // from dockerhub or if using locally then with minikube
+              imagePullPolicy: Always
+              # volumeMounts:
+              #   - name: tenant-list-volume
+              #     mountPath: /mnt/tenant-list
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  echo "Pod Index: $POD_INDEX"
+                  # Define the static list of tenant IDs
+                  tenants=("tenant_1" "tenant_2" "tenant_3")
+
+                  # Retrieve the tenant ID for this pod based on the index
+                  tenant_id="${tenants[$POD_INDEX]}"
+
+                  echo "Executing for tenant: $tenant_id";
+                  python ./app.py --tenant=$tenant_id
+              env:
+                # Use the pod's index from the Downward API
+                - name: POD_INDEX
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+              resources:
+                requests:
+                  memory: "128Mi"
+                  cpu: "250m"
+                limits:
+                  memory: "256Mi"
+                  cpu: "500m"
+          restartPolicy: OnFailure
